@@ -31,6 +31,8 @@ services:
       LETSENCRYPT_EMAIL: success@7figure.affiliatemarketconnect.com
     volumes:
       - "./wp-content:/var/www/html/wp-content"
+      - "./wp-config.php:/var/www/html/wp-config.php"
+      - "./CLAUDE.md/var/www/html/CLAUDE.md"
     networks:
       - webproxy
 
