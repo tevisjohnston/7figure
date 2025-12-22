@@ -511,3 +511,166 @@ function Theme_7_Figure_Affiliate_save_product_meta($post_id) {
     }
 }
 add_action('save_post_affiliate_product', 'Theme_7_Figure_Affiliate_save_product_meta');
+
+/**
+ * Lead Magnet List Management
+ * Handles form submissions and email delivery
+ * Add this to your functions.php
+ */
+
+ function Theme_7_Figure_Affiliate_create_lead_magnet_table() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'lead_magnet_subscribers';
+    
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+        $charset_collate = $wpdb->get_charset_collate();
+        $sql = "CREATE TABLE $table_name (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            name varchar(255) NOT NULL,
+            email varchar(255) NOT NULL UNIQUE,
+            date_submitted datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            PRIMARY KEY (id)
+        ) $charset_collate;";
+        
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+}
+add_action('wp_loaded', 'Theme_7_Figure_Affiliate_create_lead_magnet_table');
+
+function Theme_7_Figure_Affiliate_register_lead_magnet_endpoint() {
+    register_rest_route('7figure/v1', '/lead-magnet-subscribe', array(
+        'methods' => 'POST',
+        'callback' => 'Theme_7_Figure_Affiliate_handle_lead_magnet_submission',
+        'permission_callback' => '__return_true',
+    ));
+}
+add_action('rest_api_init', 'Theme_7_Figure_Affiliate_register_lead_magnet_endpoint');
+
+function Theme_7_Figure_Affiliate_handle_lead_magnet_submission($request) {
+    global $wpdb;
+    
+    $name = sanitize_text_field($request->get_param('name'));
+    $email = sanitize_email($request->get_param('email'));
+    
+    if (empty($name) || empty($email)) {
+        return new WP_REST_Response(array(
+            'success' => false,
+            'message' => 'Name and email are required.'
+        ), 400);
+    }
+    
+    // Insert into database
+    $table_name = $wpdb->prefix . 'lead_magnet_subscribers';
+    
+    $result = $wpdb->insert($table_name, array(
+        'name' => $name,
+        'email' => $email,
+    ), array('%s', '%s'));
+    
+    if (!$result) {
+        return new WP_REST_Response(array(
+            'success' => false,
+            'message' => 'Email already subscribed or database error.'
+        ), 409);
+    }
+    
+    // Send email with lead magnet
+    Theme_7_Figure_Affiliate_send_lead_magnet_email($name, $email);
+    
+    // Trigger n8n webhook if configured
+    Theme_7_Figure_Affiliate_trigger_n8n_webhook($name, $email);
+    
+    return new WP_REST_Response(array(
+        'success' => true,
+        'message' => 'Successfully subscribed! Check your email for the blueprint.'
+    ), 200);
+}
+
+function Theme_7_Figure_Affiliate_send_lead_magnet_email($name, $email) {
+    // Get the PDF file path (adjust path as needed)
+    $uploads_dir = wp_upload_dir();
+    $pdf_path = $uploads_dir['basedir'] . '/lead-magnets/The-Step-by-Step-Blueprint-to-5k-Month.pdf';
+    
+    // Email headers
+    $headers = array('Content-Type: text/html; charset=UTF-8');
+    $headers[] = 'From: success@7figure.affiliatemarketconnect.com';
+    
+    // Email subject and body
+    $subject = 'Your Step-by-Step Blueprint to $5k/Month is Ready';
+    $body = "Hi $name,\n\n";
+    $body .= "Thank you for subscribing! Your Step-by-Step Blueprint to \$5k/Month is attached below.\n\n";
+    $body .= "This blueprint contains the exact system you need to start generating consistent \$5k/month with affiliate marketing.\n\n";
+    $body .= "Best regards,\n";
+    $body .= "Tevis Johnston\n";
+    $body .= "7 Figure Affiliate";
+    
+    // Send email with attachment if PDF exists
+    if (file_exists($pdf_path)) {
+        wp_mail($email, $subject, $body, $headers, array($pdf_path));
+    } else {
+        // Fallback email if PDF doesn't exist
+        wp_mail($email, $subject, $body, $headers);
+    }
+}
+
+function Theme_7_Figure_Affiliate_trigger_n8n_webhook($name, $email) {
+    // Replace with your n8n webhook URL
+    $n8n_webhook_url = get_option('7figure_n8n_webhook_url');
+    
+    if (empty($n8n_webhook_url)) {
+        return; // Webhook not configured
+    }
+    
+    $payload = array(
+        'name' => $name,
+        'email' => $email,
+        'timestamp' => current_time('mysql'),
+        'source' => 'lead_magnet_form'
+    );
+    
+    wp_remote_post($n8n_webhook_url, array(
+        'method' => 'POST',
+        'body' => json_encode($payload),
+        'headers' => array('Content-Type' => 'application/json'),
+        'timeout' => 10,
+    ));
+}
+
+function Theme_7_Figure_Affiliate_add_settings_page() {
+    add_options_page(
+        '7 Figure Affiliate Settings',
+        '7 Figure Settings',
+        'manage_options',
+        '7figure-settings',
+        'Theme_7_Figure_Affiliate_render_settings_page'
+    );
+}
+add_action('admin_menu', 'Theme_7_Figure_Affiliate_add_settings_page');
+
+function Theme_7_Figure_Affiliate_render_settings_page() {
+    if ($_POST && check_admin_referer('7figure_settings_nonce')) {
+        update_option('7figure_n8n_webhook_url', esc_url_raw($_POST['n8n_webhook_url']));
+        echo '<div class="updated"><p>Settings saved!</p></div>';
+    }
+    
+    $n8n_webhook_url = get_option('7figure_n8n_webhook_url');
+    ?>
+    <div class="wrap">
+        <h1>7 Figure Affiliate Settings</h1>
+        <form method="post">
+            <?php wp_nonce_field('7figure_settings_nonce'); ?>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="n8n_webhook_url">n8n Webhook URL</label></th>
+                    <td>
+                        <input type="url" id="n8n_webhook_url" name="n8n_webhook_url" value="<?php echo esc_url($n8n_webhook_url); ?>" class="regular-text" placeholder="https://your-n8n-instance.com/webhook/..." />
+                        <p class="description">Paste your n8n webhook URL here to enable automation.</p>
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button(); ?>
+        </form>
+    </div>
+    <?php
+}

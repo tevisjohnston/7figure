@@ -32,7 +32,8 @@ services:
     volumes:
       - "./wp-content:/var/www/html/wp-content"
       - "./wp-config.php:/var/www/html/wp-config.php"
-      - "./CLAUDE.md/var/www/html/CLAUDE.md"
+      - "./CLAUDE.md:/var/www/html/CLAUDE.md"
+      - "./uploads.ini:/usr/local/etc/php/conf.d/uploads.ini"
     networks:
       - webproxy
 
