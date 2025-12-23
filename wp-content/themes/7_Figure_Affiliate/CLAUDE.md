@@ -54,8 +54,13 @@ npm start             # Alias for send-email
 ```
 
 ### Tailwind CSS
+To compile:
 ```bash
-npx @tailwindcss/cli build -o assets/css/src/output.css    # Compile Tailwind
+  npx @tailwindcss/cli -i assets/css/styles.css -o assets/css/src/output.css
+ ```
+For watch mode during development, use:
+```bash
+  npx @tailwindcss/cli -i assets/css/styles.css -o assets/css/src/output.css --watch
 ```
 
 Note: This theme doesn't use a build process for CSS - styles are loaded directly via style.css and the compiled Tailwind output.css

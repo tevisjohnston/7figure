@@ -22,13 +22,14 @@ get_header();
             <!-- Lead Magnet CTA -->
             <div class="lead-magnet-cta bg-slate-800 rounded-lg p-8 max-w-2xl mx-auto">
                 <h3 class="text-2xl font-bold mb-4">Get the Step-by-Step Blueprint to $5k/Month</h3>
-                <form class="flex flex-col sm:flex-row gap-4">
-                    <input type="text" placeholder="Name" class="flex-1 px-4 py-3 rounded text-dark" required>
-                    <input type="email" placeholder="Email address" class="flex-1 px-4 py-3 rounded text-dark" required>
+                <form id="lead-magnet-form" class="flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="lead-magnet-name" placeholder="Name" class="flex-1 px-4 py-3 rounded text-dark" required>
+                    <input type="email" id="lead-magnet-email" placeholder="Email address" class="flex-1 px-4 py-3 rounded text-dark" required>
                     <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-3 rounded transition">
                         Blueprint to $5k/Month
                     </button>
                 </form>
+                <div id="lead-magnet-message" class="text-sm text-slate-300 mt-3"></div>
                 <p class="text-sm text-slate-300 mt-3">Unsubscribe anytime. No spam ever.</p>
             </div>
         </div>
@@ -177,5 +178,52 @@ get_header();
     </section>
 
 </div>
+
+<script>
+document.getElementById('lead-magnet-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('lead-magnet-name').value;
+    const email = document.getElementById('lead-magnet-email').value;
+    const messageDiv = document.getElementById('lead-magnet-message');
+    const button = this.querySelector('button');
+    
+    // Disable button while submitting
+    button.disabled = true;
+    button.textContent = 'Sending...';
+    messageDiv.textContent = '';
+    
+    try {
+        const response = await fetch('<?php echo esc_url(rest_url('7figure/v1/lead-magnet-subscribe')); ?>', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                email: email
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            messageDiv.style.color = '#d1d5db';
+            messageDiv.textContent = '✓ ' + data.message;
+            document.getElementById('lead-magnet-form').reset();
+        } else {
+            messageDiv.style.color = '#ef4444';
+            messageDiv.textContent = '✗ ' + data.message;
+        }
+    } catch (error) {
+        messageDiv.style.color = '#ef4444';
+        messageDiv.textContent = '✗ Error submitting form. Please try again.';
+        console.error('Error:', error);
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Blueprint to $5k/Month';
+    }
+});
+</script>
 
 <?php get_footer(); ?>
