@@ -562,56 +562,26 @@ function Theme_7_Figure_Affiliate_handle_lead_magnet_submission($request) {
     
     // Insert into database
     $table_name = $wpdb->prefix . 'lead_magnet_subscribers';
-    
+
     $result = $wpdb->insert($table_name, array(
         'name' => $name,
         'email' => $email,
     ), array('%s', '%s'));
-    
+
     if (!$result) {
         return new WP_REST_Response(array(
             'success' => false,
             'message' => 'Email already subscribed or database error.'
         ), 409);
     }
-    
-    // Send email with lead magnet
-    Theme_7_Figure_Affiliate_send_lead_magnet_email($name, $email);
-    
-    // Trigger n8n webhook if configured
+
+    // Trigger n8n webhook for email automation
     Theme_7_Figure_Affiliate_trigger_n8n_webhook($name, $email);
     
     return new WP_REST_Response(array(
         'success' => true,
         'message' => 'Successfully subscribed! Check your email for the blueprint.'
     ), 200);
-}
-
-function Theme_7_Figure_Affiliate_send_lead_magnet_email($name, $email) {
-    // Get the PDF file path (adjust path as needed)
-    $uploads_dir = wp_upload_dir();
-    $pdf_path = $uploads_dir['basedir'] . '/lead-magnets/The-Step-by-Step-Blueprint-to-5k-Month.pdf';
-    
-    // Email headers
-    $headers = array('Content-Type: text/html; charset=UTF-8');
-    $headers[] = 'From: success@7figure.affiliatemarketconnect.com';
-    
-    // Email subject and body
-    $subject = 'Your Step-by-Step Blueprint to $5k/Month is Ready';
-    $body = "Hi $name,\n\n";
-    $body .= "Thank you for subscribing! Your Step-by-Step Blueprint to \$5k/Month is attached below.\n\n";
-    $body .= "This blueprint contains the exact system you need to start generating consistent \$5k/month with affiliate marketing.\n\n";
-    $body .= "Best regards,\n";
-    $body .= "Tevis Johnston\n";
-    $body .= "7 Figure Affiliate";
-    
-    // Send email with attachment if PDF exists
-    if (file_exists($pdf_path)) {
-        wp_mail($email, $subject, $body, $headers, array($pdf_path));
-    } else {
-        // Fallback email if PDF doesn't exist
-        wp_mail($email, $subject, $body, $headers);
-    }
 }
 
 function Theme_7_Figure_Affiliate_trigger_n8n_webhook($name, $email) {

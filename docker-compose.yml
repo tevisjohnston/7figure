@@ -37,6 +37,25 @@ services:
     networks:
       - webproxy
 
+  email-service:
+    build: ./wp-content/themes/7_Figure_Affiliate/email-service
+    container_name: 7figure-email-service
+    restart: unless-stopped
+    depends_on:
+      - db_2
+    environment:
+      - DB_HOST=db_2
+      - DB_USER=root
+      - DB_PASSWORD=wp_db_password
+      - DB_NAME=wp_db_7figure
+      - DB_PORT=3306
+    env_file:
+      - ./wp-content/themes/7_Figure_Affiliate/email-service/.env
+    networks:
+      - webproxy
+    ports:
+      - "3000:3000"
+
 volumes:
   mysql_7figure: {} 
 
