@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/tevis/7figure.affiliatemarketconnect.com/wp-content/themes/7_Figure_Affiliate"
+      ]
+    }
+  }
+}
